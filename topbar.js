@@ -146,6 +146,24 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     overflow-y: auto !important; overscroll-behavior: contain;
   }
 }
+.topbar-bell-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  padding: 0; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px; cursor: pointer;
+  font-size: 17px; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.topbar-bell-btn:hover { background: rgba(255,255,255,0.10); }
+.topbar-bell-btn[data-active="true"] {
+  background: rgba(107,227,164,0.12);
+  border-color: rgba(107,227,164,0.30);
+}
+@media (max-width: 480px) {
+  .topbar-bell-btn { width: 32px; height: 32px; font-size: 15px; }
+}
 `;
 
   const topbarHtml = `
@@ -160,6 +178,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   <a href="finance.html" class="topbar-finance-btn" id="topbarFinance" aria-label="Finance">
     <span class="topbar-finance-icon">📊</span>
   </a>
+  <button class="topbar-bell-btn" id="topbarBellBtn" title="Enable notifications" style="display:none" aria-label="Toggle notifications" type="button">🔕</button>
 </header>`;
 
   const bottombarHtml = `
@@ -331,6 +350,49 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     sync();
   }
 
+  function initBell() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const btn = document.getElementById('topbarBellBtn');
+    if (!btn) return;
+    btn.style.display = 'inline-flex';
+
+    function refreshBellState() {
+      const active = localStorage.getItem('notif_subscribed') === 'true' &&
+                     Notification.permission === 'granted';
+      btn.setAttribute('data-active', active ? 'true' : 'false');
+      btn.textContent = active ? '🔔' : '🔕';
+      btn.title = active ? 'Notifications on' : 'Enable notifications';
+    }
+    refreshBellState();
+
+    btn.addEventListener('click', async () => {
+      if (!window.NotifClient) {
+        alert('Notification script not loaded. Please reload the page.');
+        return;
+      }
+      if (Notification.permission === 'granted' && localStorage.getItem('notif_subscribed') === 'true') {
+        alert('Notifications are already enabled on this device. ✓');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      const result = await window.NotifClient.subscribe();
+      btn.disabled = false;
+      if (result.ok) {
+        refreshBellState();
+        alert('Notifications enabled! You\'ll get reminders at 8 PM if you haven\'t logged.');
+      } else if (result.reason === 'denied') {
+        refreshBellState();
+        alert('Notification permission denied. Enable it in your browser or system settings, then reload.');
+      } else if (result.reason === 'not-supported') {
+        alert('Push notifications aren\'t supported here. On iPhone, add this to your Home Screen via Safari first.');
+      } else {
+        refreshBellState();
+        alert('Something went wrong enabling notifications. Try reloading.');
+      }
+    });
+  }
+
   function boot() {
     injectStyleAndHTML();
     const btn = document.getElementById('topbarWaterAdd');
@@ -338,6 +400,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     render();
     lockGestures();
     startModalLock();
+    initBell();
     window.addEventListener('storage', render);
     window.addEventListener('focus', render);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
