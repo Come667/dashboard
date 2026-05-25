@@ -432,9 +432,10 @@ body.tb-page-leave {
       e.preventDefault();
       const dest = href;
       document.body.classList.add('tb-page-leave');
-      document.body.addEventListener('animationend', function () {
-        location.href = dest;
-      }, { once: true });
+      let gone = false;
+      function go() { if (!gone) { gone = true; location.href = dest; } }
+      document.body.addEventListener('animationend', go, { once: true });
+      setTimeout(go, 280);
     }, true);
   }
 
