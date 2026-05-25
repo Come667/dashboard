@@ -169,13 +169,6 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 @media (max-width: 480px) {
   .topbar-bell-btn { width: 32px; height: 32px; font-size: 15px; }
 }
-@keyframes tb-page-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-body.tb-page-enter {
-  animation: tb-page-enter 0.40s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
 @keyframes tb-page-leave {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: 0; transform: translateY(-6px); }
@@ -414,11 +407,6 @@ body.tb-page-leave {
   }
 
   function setupPageTransitions() {
-    document.body.classList.add('tb-page-enter');
-    document.body.addEventListener('animationend', function () {
-      document.body.classList.remove('tb-page-enter');
-    }, { once: true });
-
     document.addEventListener('click', function (e) {
       const a = e.target.closest('a[href]');
       if (!a) return;
