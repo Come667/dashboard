@@ -62,7 +62,7 @@
   font-size: 20px; font-weight: 700; line-height: 1;
   cursor: pointer; border-radius: 0 12px 12px 0;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, transform 0.10s;
+  transition: background 0.15s, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .topbar-water-add:active { transform: scale(0.94); }
 .topbar-water-add.flash {
@@ -75,9 +75,10 @@
   background: rgba(255, 255, 255, 0.04);
   border-radius: 12px; text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .topbar-finance-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.topbar-finance-btn:active { transform: scale(0.91); }
 .topbar-finance-icon {
   font-size: 20px; line-height: 1;
   filter: grayscale(100%) brightness(1.4); opacity: 0.85;
@@ -101,13 +102,13 @@
 .bottombar-tab-icon {
   font-size: 24px; line-height: 1;
   filter: grayscale(100%) brightness(1.2); opacity: 0.55;
-  transition: opacity 0.15s, filter 0.15s, transform 0.10s;
+  transition: opacity 0.15s, filter 0.15s, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .bottombar-tab.active { color: #FAFAFA; }
 .bottombar-tab.active .bottombar-tab-icon {
   filter: grayscale(100%) brightness(1.6); opacity: 1;
 }
-.bottombar-tab:active .bottombar-tab-icon { transform: scale(0.92); }
+.bottombar-tab:active .bottombar-tab-icon { transform: scale(0.86); }
 body.has-bottombar {
   padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
 }
@@ -157,15 +158,31 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   border-radius: 10px; cursor: pointer;
   font-size: 17px; line-height: 1;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .topbar-bell-btn:hover { background: rgba(255,255,255,0.10); }
+.topbar-bell-btn:active { transform: scale(0.91); }
 .topbar-bell-btn[data-active="true"] {
   background: rgba(107,227,164,0.12);
   border-color: rgba(107,227,164,0.30);
 }
 @media (max-width: 480px) {
   .topbar-bell-btn { width: 32px; height: 32px; font-size: 15px; }
+}
+@keyframes tb-page-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.tb-page-enter {
+  animation: tb-page-enter 0.40s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tb-page-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+body.tb-page-leave {
+  animation: tb-page-leave 0.20s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 `;
 
@@ -396,6 +413,31 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     });
   }
 
+  function setupPageTransitions() {
+    document.body.classList.add('tb-page-enter');
+    document.body.addEventListener('animationend', function () {
+      document.body.classList.remove('tb-page-enter');
+    }, { once: true });
+
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (!href || href.charAt(0) === '#' || href.indexOf('javascript') === 0 || a.target === '_blank') return;
+      try {
+        const url = new URL(href, location.href);
+        if (url.origin !== location.origin) return;
+        if (url.href === location.href) return;
+      } catch (err) { return; }
+      e.preventDefault();
+      const dest = href;
+      document.body.classList.add('tb-page-leave');
+      document.body.addEventListener('animationend', function () {
+        location.href = dest;
+      }, { once: true });
+    }, true);
+  }
+
   function boot() {
     injectStyleAndHTML();
     const btn = document.getElementById('topbarWaterAdd');
@@ -404,6 +446,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     lockGestures();
     startModalLock();
     initBell();
+    setupPageTransitions();
     window.addEventListener('storage', render);
     window.addEventListener('focus', render);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });

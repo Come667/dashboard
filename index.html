@@ -595,6 +595,13 @@ body::after {
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
+@keyframes gmRowEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gm-row.gm-row-enter {
+  animation: gmRowEnter 0.30s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
 </style>
 <script src="notification-client.js" defer></script>
 </head>
@@ -916,6 +923,7 @@ body::after {
   const fillEl = document.getElementById('dayRingFill');
   fillEl.setAttribute('stroke-dasharray', C);
   fillEl.setAttribute('stroke-dashoffset', C);
+  let ringCountUpDone = false;
 
   function updateDayRing() {
     const now = new Date();
@@ -951,9 +959,32 @@ body::after {
 
     const span = SLEEP_HOUR - WAKE_HOUR;
     const percent = (hours - WAKE_HOUR) / span * 100;
-    fillEl.setAttribute('stroke-dashoffset', C * (1 - percent / 100));
+    const targetPercent = Math.floor(percent);
+    const targetOffset  = C * (1 - percent / 100);
+
     fillEl.style.stroke = rgb(paletteAt(percent));
-    percentEl.textContent = Math.floor(percent) + '%';
+
+    if (!ringCountUpDone) {
+      ringCountUpDone = true;
+      fillEl.setAttribute('stroke-dashoffset', C);
+      percentEl.textContent = '0%';
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          fillEl.setAttribute('stroke-dashoffset', targetOffset);
+        });
+        var duration = 750;
+        var startTime = performance.now();
+        (function countUp(now) {
+          var t    = Math.min((now - startTime) / duration, 1);
+          var ease = 1 - Math.pow(1 - t, 3);
+          percentEl.textContent = Math.round(ease * targetPercent) + '%';
+          if (t < 1) requestAnimationFrame(countUp);
+        })(startTime);
+      });
+    } else {
+      percentEl.textContent = targetPercent + '%';
+      fillEl.setAttribute('stroke-dashoffset', targetOffset);
+    }
 
     let phase, status;
     if (percent < 25)      { phase = 'MORNING';   status = '☀️ Morning — fresh start'; }
@@ -1150,13 +1181,27 @@ body::after {
       'Plan tomorrow — ' + formatDate(getTomorrowDateString());
   }
 
+  let firstTodayRender = true;
+  let firstTomorrowRender = true;
+
   function renderListInto(goals, listEl, emptyEl, key, readOnly) {
     listEl.innerHTML = '';
     emptyEl.style.display = goals.length === 0 ? 'block' : 'none';
     const reload = () => (key === todayKey() ? loadToday() : loadTomorrow());
 
+    const isFirstRender = key === todayKey() ? firstTodayRender : firstTomorrowRender;
+    if (key === todayKey()) firstTodayRender = false;
+    else firstTomorrowRender = false;
+
     const visible = goals.length > 5 ? goals.slice(0, 5) : goals;
-    visible.forEach((g, i) => listEl.appendChild(buildGoalRow(g, i, key, readOnly, reload)));
+    visible.forEach((g, i) => {
+      const row = buildGoalRow(g, i, key, readOnly, reload);
+      if (isFirstRender && !g.done) {
+        row.style.animationDelay = (i * 50) + 'ms';
+        row.classList.add('gm-row-enter');
+      }
+      listEl.appendChild(row);
+    });
 
     if (goals.length > 5) {
       let expanded = false;
