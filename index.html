@@ -1125,7 +1125,18 @@ body::after {
     });
 
     const card = document.getElementById('gmCardToday');
+    const wasAllDone = card.classList.contains('gm-all-done');
     card.classList.toggle('gm-all-done', total > 0 && done === total);
+
+    try {
+      if (!wasAllDone && total > 0 && done === total && window.NotifClient) {
+        window.NotifClient.sendGoalAlert(
+          'All goals done! 🎯',
+          'You completed all your goals for today.',
+          '/index.html'
+        );
+      }
+    } catch (e) {}
 
     const pushBtn = document.getElementById('gmPushBtn');
     pushBtn.style.display = (total > 0 && done < total) ? 'block' : 'none';

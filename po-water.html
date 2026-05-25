@@ -722,9 +722,23 @@ html, body {
   function todayCount() { return state.logs[todayKey()] || 0; }
   function setTodayCount(n) {
     const k = todayKey();
+    const prevCount = state.logs[k] || 0;
     if (n <= 0) delete state.logs[k];
     else state.logs[k] = n;
     saveState();
+
+    try {
+      if (window.NotifClient && n > prevCount) {
+        const target = Math.ceil(computeTargetMl().total / unitVolMl());
+        if (n >= target && prevCount < target) {
+          window.NotifClient.sendGoalAlert(
+            'Water goal hit! 💧',
+            'You reached your daily water target. Stay hydrated.',
+            '/po-water.html'
+          );
+        }
+      }
+    } catch (e) {}
   }
 
   // ============================================================

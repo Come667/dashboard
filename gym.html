@@ -2214,6 +2214,7 @@ img, video, canvas, svg { max-width: 100%; }
 
   $('poTwDoneBtn').addEventListener('click', () => {
     const todayKey = wtDateKey(new Date());
+    const wasAlreadyDone = !!doneDays[todayKey];
     if (doneDays[todayKey]) {
       delete doneDays[todayKey];
     } else {
@@ -2222,6 +2223,16 @@ img, video, canvas, svg { max-width: 100%; }
     saveDoneDays(doneDays);
     renderTodaysWorkout();
     renderPastWorkouts();
+
+    try {
+      if (!wasAlreadyDone && doneDays[todayKey] && window.NotifClient) {
+        window.NotifClient.sendGoalAlert(
+          'Workout done! 💪',
+          "You completed today's workout. Great work.",
+          '/gym.html'
+        );
+      }
+    } catch (e) {}
   });
   $('poTwPastToggle').addEventListener('click', () => {
     const body = $('poTwPastBody');
