@@ -595,6 +595,71 @@ body::after {
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
+/* ===== Stats Section ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 14px 16px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.40);
+}
+.stat-card-wide { grid-column: 1 / -1; }
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+.stat-dots { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.stat-dot {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--text-tertiary);
+}
+.stat-dot.done { background: rgba(107,227,164,0.14); border-color: rgba(107,227,164,0.30); color: #6BE3A4; }
+.stat-dot.partial { background: rgba(242,192,99,0.10); border-color: rgba(242,192,99,0.22); color: #F2C063; }
+.gym-week-row { display: flex; gap: 5px; margin-bottom: 8px; }
+.gym-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.gym-day-dot {
+  width: 100%; max-width: 24px; aspect-ratio: 1;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.gym-day-dot.done {
+  background: rgba(125,211,252,0.18);
+  border-color: rgba(125,211,252,0.38);
+  box-shadow: 0 0 8px rgba(125,211,252,0.18);
+}
+.gym-day-dot.future { opacity: 0.28; }
+.gym-day-label { font-family: var(--font-mono); font-size: 8px; font-weight: 700; color: var(--text-tertiary); }
+.peak-hours-chart { display: flex; gap: 2px; height: 40px; align-items: flex-end; margin-bottom: 8px; }
+.peak-bar {
+  flex: 1; min-height: 2px; border-radius: 2px 2px 0 0;
+  background: rgba(255,255,255,0.07);
+  transition: background 0.3s;
+}
+.peak-bar.has-data { background: rgba(107,227,164,0.20); }
+.peak-bar.is-peak { background: #6BE3A4; box-shadow: 0 0 6px rgba(107,227,164,0.45); }
+.peak-hours-labels { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.peak-hours-label { font-family: var(--font-mono); font-size: 8px; color: var(--text-tertiary); }
+.stat-value { font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-secondary); }
+@media (max-width: 480px) {
+  .stat-card { padding: 12px 13px; }
+  .stat-dot { width: 19px; height: 19px; font-size: 8px; }
+}
+
 @keyframes gmRowEnter {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -697,6 +762,33 @@ body::after {
         <button type="button" id="tomorrowAddBtn"    class="gm-add">+ Add</button>
         <button type="button" id="tomorrowPolishBtn" class="gm-polish">✨ Polish</button>
         <div class="gm-status" id="tomorrowStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Stats</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">7 derniers jours</div>
+        <div class="stat-dots" id="statGoalDots"></div>
+        <div class="stat-value" id="statGoalValue">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Gym cette semaine</div>
+        <div class="gym-week-row" id="statGymDots"></div>
+        <div class="stat-value" id="statGymValue">—</div>
+      </div>
+      <div class="stat-card stat-card-wide">
+        <div class="stat-label">Heures productives</div>
+        <div class="peak-hours-chart" id="statPeakChart"></div>
+        <div class="peak-hours-labels">
+          <span class="peak-hours-label">06h</span>
+          <span class="peak-hours-label">12h</span>
+          <span class="peak-hours-label">18h</span>
+          <span class="peak-hours-label">23h</span>
+        </div>
+        <div class="stat-value" id="statPeakValue">—</div>
       </div>
     </div>
   </div>
@@ -1174,6 +1266,116 @@ body::after {
     document.getElementById('gmStreak').classList.toggle('gm-streak-active', s.count > 0);
   }
 
+  // ---------- Stats ----------
+  function pad2s(n) { return String(n).padStart(2, '0'); }
+  function dateKeyFor(d) {
+    return d.getFullYear() + '-' + pad2s(d.getMonth() + 1) + '-' + pad2s(d.getDate());
+  }
+
+  function renderGoalDots() {
+    const container = document.getElementById('statGoalDots');
+    const valueEl   = document.getElementById('statGoalValue');
+    if (!container) return;
+    container.innerHTML = '';
+    const now = new Date();
+    let completeDays = 0;
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      let goals = [];
+      try { goals = JSON.parse(localStorage.getItem('goals:' + dateKeyFor(d)) || '[]'); } catch (e) {}
+      const total = goals.length;
+      const done  = goals.filter(function(g) { return g.done; }).length;
+      const dot = document.createElement('div');
+      dot.className = 'stat-dot';
+      if (total === 0) {
+        dot.textContent = '·';
+      } else if (done === total) {
+        dot.classList.add('done'); dot.textContent = '✓'; completeDays++;
+      } else if (done > 0) {
+        dot.classList.add('partial'); dot.textContent = '~';
+      } else {
+        dot.textContent = '○';
+      }
+      container.appendChild(dot);
+    }
+    if (valueEl) valueEl.textContent = completeDays + '/7 jours complets';
+  }
+
+  function renderGymDots() {
+    const container = document.getElementById('statGymDots');
+    const valueEl   = document.getElementById('statGymValue');
+    if (!container) return;
+    let doneDays = {};
+    try { doneDays = JSON.parse(localStorage.getItem('po_coach_workout_done') || '{}'); } catch (e) {}
+    container.innerHTML = '';
+    const now = new Date();
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+    const labels = ['L','M','M','J','V','S','D'];
+    let workouts = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = dateKeyFor(d);
+      const done = !!doneDays[key];
+      const isFuture = d > now;
+      if (done) workouts++;
+      const col = document.createElement('div');
+      col.className = 'gym-day';
+      const dot = document.createElement('div');
+      dot.className = 'gym-day-dot' + (done ? ' done' : '') + (isFuture ? ' future' : '');
+      const lbl = document.createElement('div');
+      lbl.className = 'gym-day-label';
+      lbl.textContent = labels[i];
+      col.appendChild(dot); col.appendChild(lbl);
+      container.appendChild(col);
+    }
+    if (valueEl) valueEl.textContent = workouts + ' séance' + (workouts !== 1 ? 's' : '') + ' cette semaine';
+  }
+
+  function renderPeakHours() {
+    const container = document.getElementById('statPeakChart');
+    const valueEl   = document.getElementById('statPeakValue');
+    if (!container) return;
+    const hourCounts = new Array(24).fill(0);
+    let total = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k.indexOf('goals:') !== 0) continue;
+      let goals = [];
+      try { goals = JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) {}
+      goals.forEach(function(g) {
+        if (g.doneAt) { hourCounts[new Date(g.doneAt).getHours()]++; total++; }
+      });
+    }
+    container.innerHTML = '';
+    const hours = [];
+    for (let h = 6; h <= 23; h++) hours.push(h);
+    let peakHour = -1, peakCount = 0;
+    hours.forEach(function(h) { if (hourCounts[h] > peakCount) { peakCount = hourCounts[h]; peakHour = h; } });
+    const maxCount = Math.max(peakCount, 1);
+    hours.forEach(function(h) {
+      const bar = document.createElement('div');
+      bar.className = 'peak-bar' +
+        (hourCounts[h] > 0 ? ' has-data' : '') +
+        (h === peakHour && peakCount > 0 ? ' is-peak' : '');
+      bar.style.height = Math.max(2, Math.round((hourCounts[h] / maxCount) * 40)) + 'px';
+      bar.title = h + 'h — ' + hourCounts[h];
+      container.appendChild(bar);
+    });
+    if (valueEl) valueEl.textContent = total === 0
+      ? 'Données insuffisantes pour l\'instant'
+      : 'Pic à ' + peakHour + 'h (' + peakCount + ' objectif' + (peakCount !== 1 ? 's' : '') + ')';
+  }
+
+  function renderStats() {
+    renderGoalDots();
+    renderGymDots();
+    renderPeakHours();
+  }
+
   function renderTomorrowCount() {
     const list = getGoals(tomorrowKey());
     document.getElementById('gmTomorrowCount').textContent = list.length + ' planned';
@@ -1351,13 +1553,16 @@ body::after {
   loadToday();
   loadTomorrow();
   renderStreak();
+  renderStats();
   updateDayRing();
   setInterval(updateDayRing, 60 * 1000);
   startTicker();
 
+  window.addEventListener('goals-changed', renderStats);
+
   // Re-render when storage changes from another tab (or our bridged parent).
   window.addEventListener('storage', () => {
-    loadToday(); loadTomorrow(); renderStreak();
+    loadToday(); loadTomorrow(); renderStreak(); renderStats();
   });
 })();
 </script>
