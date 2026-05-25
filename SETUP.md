@@ -91,9 +91,9 @@ The bell will turn into 🔔 to confirm it is on.
 
 | What triggers it | When |
 |---|---|
-| Water reminder | 8 PM, if you haven't logged any water that day |
-| Gym reminder | 8 PM, if you haven't marked a workout done that day |
-| Goals reminder | 8 PM, if you haven't added any goals for that day |
+| Water reminder | 20h00 Mon–Fri / 22h00 Sat–Sun, if you haven't logged any water that day |
+| Gym reminder | 20h00 Mon–Fri / 22h00 Sat–Sun, if you haven't marked a workout done that day |
+| Goals reminder | 20h00 Mon–Fri / 22h00 Sat–Sun, if you haven't added any goals for that day |
 | Water goal hit | Immediately, when you reach your daily water target |
 | Workout complete | Immediately, when you tap "Mark workout done" |
 | All goals done | Immediately, when you check off your last goal |
