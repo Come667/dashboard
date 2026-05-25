@@ -30,26 +30,21 @@ const CONFIG = {
     { id: "comm",  name: "Commercial Gym" }
   ],
 
-  // Training split. Most people use Push/Pull/Legs but you can rename
-  // these to "Upper", "Lower", "Full Body", "Day A", anything.
+  // PPL / UL split
   days: [
-    { id: "push", name: "Push" },
-    { id: "pull", name: "Pull" },
-    { id: "legs", name: "Legs" }
+    { id: "push",  name: "Push"  },
+    { id: "pull",  name: "Pull"  },
+    { id: "legs",  name: "Legs"  },
+    { id: "upper", name: "Upper" },
+    { id: "lower", name: "Lower" }
   ],
 
-  // Split rotation — the order your training days cycle through. Use day
-  // ids from `days` above, plus "rest" for off-days. The pill at the top
-  // of the app reads this + splitAnchor to compute "what day is today".
-  splitRotation: ["push", "pull", "legs", "rest"],
+  // Push → Pull → Legs → Repos → Upper → Lower → Repos
+  splitRotation: ["push", "pull", "legs", "rest", "upper", "lower", "rest"],
 
-  // Anchor: pair a real calendar date with which split day fell on it.
-  // The rotation advances from this point. Set `date` to a recent day
-  // when you knew what split you were on, and `splitId` to that day.
-  // Edit this if your split drifts.
   splitAnchor: {
-    date: "2026-05-12",
-    splitId: "rest"
+    date: "2026-05-25",
+    splitId: "push"
   },
 
   // Progression rule: hit this many reps on the top set → coach tells you
@@ -88,7 +83,15 @@ const CONFIG = {
     { name: "Bicep curl",      gym: "comm", day: "pull", repMin: 8, repMax: 12, step: 1.25,startWeight: 15 },
     { name: "Back squat",      gym: "comm", day: "legs", repMin: 5, repMax: 8,  step: 5,   startWeight: 80 },
     { name: "Romanian deadlift", gym: "comm", day: "legs", repMin: 6, repMax: 10, step: 5, startWeight: 60 },
-    { name: "Leg press",       gym: "comm", day: "legs", repMin: 8, repMax: 12, step: 5,   startWeight: 100 }
+    { name: "Leg press",         gym: "comm", day: "legs",  repMin: 8, repMax: 12, step: 5,    startWeight: 100 },
+    { name: "Incline press",     gym: "comm", day: "upper", repMin: 6, repMax: 10, step: 2.5,  startWeight: 50  },
+    { name: "Lat pulldown",      gym: "comm", day: "upper", repMin: 8, repMax: 12, step: 2.5,  startWeight: 50  },
+    { name: "DB shoulder press", gym: "comm", day: "upper", repMin: 8, repMax: 12, step: 2,    startWeight: 16  },
+    { name: "Cable row",         gym: "comm", day: "upper", repMin: 8, repMax: 12, step: 2.5,  startWeight: 40  },
+    { name: "Squat",             gym: "comm", day: "lower", repMin: 5, repMax: 8,  step: 5,    startWeight: 70  },
+    { name: "Deadlift",          gym: "comm", day: "lower", repMin: 4, repMax: 6,  step: 5,    startWeight: 80  },
+    { name: "Leg curl",          gym: "comm", day: "lower", repMin: 8, repMax: 12, step: 5,    startWeight: 40  },
+    { name: "Leg extension",     gym: "comm", day: "lower", repMin: 8, repMax: 12, step: 5,    startWeight: 40  }
   ]
 };
 </script>
@@ -365,6 +368,21 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 /* ----- Weight + Reps inputs ----- */
+.po-sets-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0 14px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--border);
+}
+.po-sets-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.po-sets-controls { display: flex; align-items: center; gap: 18px; }
+.po-sets-num {
+  font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-1); min-width: 24px; text-align: center;
+}
 .po-log-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
 }
@@ -1503,14 +1521,20 @@ img, video, canvas, svg { max-width: 100%; }
           </div>
         </div>
       </div>
-      <button class="po-btn-primary" id="logBtn">Log set</button>
+      <!-- Sets counter -->
+      <div class="po-sets-bar" id="setsBar">
+        <span class="po-sets-label">Sets</span>
+        <div class="po-sets-controls">
+          <button class="po-w-btn" id="setsDownBtn" type="button">−</button>
+          <span class="po-sets-num" id="setsNum">3</span>
+          <button class="po-w-btn" id="setsUpBtn" type="button">+</button>
+        </div>
+      </div>
+      <button class="po-btn-primary" id="logBtn">Log 3 × 8</button>
     </div>
 
-    <!-- Prescription -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">Next session</div>
-      <div id="rxWrap"></div>
-    </div>
+    <!-- Prescription (hidden) -->
+    <div id="rxWrap" style="display:none"></div>
 
     <!-- Stats -->
     <div class="po-sub-section">
@@ -1861,11 +1885,13 @@ img, video, canvas, svg { max-width: 100%; }
       wField.style.display = 'none';
       grid.classList.add('po-bw-mode');
       oneRmLbl.textContent = 'Best reps';
+      $('setsBar').style.display = 'flex';
     } else {
       banner.classList.remove('show');
       wField.style.display = '';
       grid.classList.remove('po-bw-mode');
       oneRmLbl.textContent = 'Est. 1RM';
+      $('setsBar').style.display = 'flex';
     }
   }
   function renderLastSet() {
@@ -2278,12 +2304,27 @@ img, video, canvas, svg { max-width: 100%; }
   // Delegated click handler — reps row is regenerated per exercise via
   // renderRepsRow(), so we listen on the container rather than the
   // individual buttons.
+  function updateLogBtnLabel() {
+    const sets = parseInt($('setsNum').textContent, 10) || 1;
+    const reps = parseInt($('repsRow').dataset.value, 10) || 8;
+    $('logBtn').textContent = 'Log ' + sets + ' × ' + reps;
+  }
+
   $('repsRow').addEventListener('click', (e) => {
     const p = e.target.closest('.po-reps-pill');
     if (!p) return;
     $('repsRow').querySelectorAll('.po-reps-pill').forEach(x => x.classList.remove('active'));
     p.classList.add('active');
     $('repsRow').dataset.value = p.dataset.v;
+    updateLogBtnLabel();
+  });
+  $('setsDownBtn').addEventListener('click', () => {
+    const cur = parseInt($('setsNum').textContent, 10) || 1;
+    if (cur > 1) { $('setsNum').textContent = cur - 1; updateLogBtnLabel(); }
+  });
+  $('setsUpBtn').addEventListener('click', () => {
+    const cur = parseInt($('setsNum').textContent, 10) || 1;
+    if (cur < 10) { $('setsNum').textContent = cur + 1; updateLogBtnLabel(); }
   });
   $('logBtn').addEventListener('click', () => {
     const ex = getCurrentEx();
@@ -2292,13 +2333,14 @@ img, video, canvas, svg { max-width: 100%; }
     if (reps <= 0) { alert('Pick a rep count.'); return; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
     if (!ex.bw && w <= 0) { alert('Enter a weight.'); return; }
+    const sets = parseInt($('setsNum').textContent, 10) || 1;
     const arr = state.logs[ex.id] || [];
-    arr.push({ weight: w, reps: reps, date: new Date().toISOString() });
+    for (let i = 0; i < sets; i++) {
+      arr.push({ weight: w, reps: reps, date: new Date().toISOString() });
+    }
     state.logs[ex.id] = arr;
     saveState(); renderAll();
-    // Strength changed → composition estimate may shift
     if (typeof wtRender === 'function') wtRender();
-    // Tiny pulse on the button so the user feels the save
     const btn = $('logBtn');
     btn.style.transition = 'transform 0.15s';
     btn.style.transform = 'scale(0.96)';
